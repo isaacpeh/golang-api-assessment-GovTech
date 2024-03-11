@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/url"
+	"regexp"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -11,6 +12,7 @@ func registerRoutes(app *fiber.App) {
 	app.Post("/api/register", registerHandler)
 	app.Get("/api/commonstudents", retrieveStudents)
 	app.Post("/api/suspend", suspendStudent)
+	app.Post("/api/retrievefornotifications", notifyStudents)
 }
 
 func registerHandler(c *fiber.Ctx) error {
@@ -131,4 +133,62 @@ func suspendStudent(c *fiber.Ctx) error {
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func notifyStudents(c *fiber.Ctx) error {
+	type NotifyRequest struct {
+		Teacher      string `json:"teacher"`
+		Notification string `json:"notification"`
+	}
+
+	// Parse request body
+	var req NotifyRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid request body",
+		})
+	}
+
+	// Check if teacher email is provided
+	if req.Teacher == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Teacher email is required",
+		})
+	}
+
+	// Check if Notification is provided
+	if req.Notification == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Notification message is required",
+		})
+	}
+
+	// Regular expression to match email addresses after the "@"
+	re := regexp.MustCompile(`@([\w.%+-]+@[\w.-]+\.[a-zA-Z]{2,})`)
+	matches := re.FindAllStringSubmatch(req.Notification, -1)
+
+	// Extract email addresses from the matches
+	var emails []string
+	for _, match := range matches {
+		emails = append(emails, match[1])
+	}
+
+	recipients, err := returnRecipients(req.Teacher, emails)
+	if err != nil {
+		fmt.Println(err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to notify students",
+		})
+	}
+
+	if len(recipients) <= 0 {
+		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+			"message": "No recipients of this notification",
+		})
+	}
+
+	// Return the list of recipients
+	return c.JSON(fiber.Map{
+		"recipients": recipients,
+	})
 }

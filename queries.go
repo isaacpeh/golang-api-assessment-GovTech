@@ -111,3 +111,42 @@ func suspendSpecificStudent(student string) (int64, error) {
 
 	return rowsAffected, nil
 }
+
+func returnRecipients(teacherEmail string, studentEmails []string) ([]string, error) {
+	// Enclose each email in single quotes
+	quotedEmails := make([]string, len(studentEmails))
+	for i, student := range studentEmails {
+		quotedEmails[i] = "'" + student + "'"
+	}
+
+	query := `
+		SELECT DISTINCT s.email
+		FROM students s
+		LEFT JOIN teacher_student ts ON s.id = ts.student_id
+		LEFT JOIN teachers t ON t.id = ts.teacher_id
+		WHERE s.isSuspended = false 
+		AND (t.email = $1 OR s.email IN (` + strings.Join(quotedEmails, ", ") + `))
+	`
+
+	// Execute the query
+	rows, err := db.Query(query, teacherEmail)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	// Iterate through the result set and store the email addresses in a slice
+	var recipients []string
+	for rows.Next() {
+		var email string
+		if err := rows.Scan(&email); err != nil {
+			return nil, err
+		}
+		recipients = append(recipients, email)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return recipients, nil
+}
