@@ -96,3 +96,18 @@ func getCommonStudents(teachers []string) ([]string, error) {
 
 	return commonStudents, nil
 }
+
+func suspendSpecificStudent(student string) (int64, error) {
+	result, err := db.Exec("UPDATE students SET issuspended = true WHERE email = $1", student)
+	if err != nil {
+		return 0, err
+	}
+
+	// Get rows affected
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+
+	return rowsAffected, nil
+}

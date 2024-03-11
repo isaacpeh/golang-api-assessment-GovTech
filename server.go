@@ -10,6 +10,7 @@ import (
 func registerRoutes(app *fiber.App) {
 	app.Post("/api/register", registerHandler)
 	app.Get("/api/commonstudents", retrieveStudents)
+	app.Post("/api/suspend", suspendStudent)
 }
 
 func registerHandler(c *fiber.Ctx) error {
@@ -22,7 +23,7 @@ func registerHandler(c *fiber.Ctx) error {
 	var req RegisterRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"emessagerror": "Invalid request body",
+			"message": "Invalid request body",
 		})
 	}
 
@@ -93,4 +94,41 @@ func retrieveStudents(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"students": commonStudents,
 	})
+}
+
+func suspendStudent(c *fiber.Ctx) error {
+	type SuspendRequest struct {
+		Student string `json:"student"`
+	}
+
+	// Parse request body
+	var req SuspendRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid request body",
+		})
+	}
+
+	// Check if teacher email is provided
+	if req.Student == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Student email is required",
+		})
+	}
+
+	// Register teacher and students in the database
+	result, err := suspendSpecificStudent(req.Student)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to suepend student",
+		})
+	}
+
+	if result <= 0 {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Student not found in database",
+		})
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
 }
