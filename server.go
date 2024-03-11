@@ -1,11 +1,15 @@
 package main
 
 import (
+	"fmt"
+	"net/url"
+
 	"github.com/gofiber/fiber/v2"
 )
 
 func registerRoutes(app *fiber.App) {
 	app.Post("/api/register", registerHandler)
+	app.Get("/api/commonstudents", retrieveStudents)
 }
 
 func registerHandler(c *fiber.Ctx) error {
@@ -44,4 +48,49 @@ func registerHandler(c *fiber.Ctx) error {
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func retrieveStudents(c *fiber.Ctx) error {
+	// Parse query parameters
+	originalURL := c.OriginalURL()
+
+	// Parse the URL
+	url, err := url.Parse(originalURL)
+	if err != nil {
+		return err // handle error
+	}
+
+	// Extract the query parameters
+	query := url.Query()
+
+	// Get the values for the "teacher" parameter
+	teacherList := query["teacher"]
+
+	// Check if the teacher list is empty
+	if len(teacherList) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "At least one teacher email is required",
+		})
+	}
+
+	// Retrieve common students from the database
+	commonStudents, err := getCommonStudents(teacherList)
+	if err != nil {
+		fmt.Println(err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to retrieve common students",
+		})
+	}
+
+	// Return message if there are no common students for listed teachers
+	if len(commonStudents) == 0 {
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"message": "No common students found for the provided list of teachers.",
+		})
+	}
+
+	// Return the list of common students
+	return c.JSON(fiber.Map{
+		"students": commonStudents,
+	})
 }

@@ -2,6 +2,8 @@ package main
 
 import (
 	"database/sql"
+	"strconv"
+	"strings"
 )
 
 func registerTeacherStudent(teacherEmail string, studentEmails []string) error {
@@ -52,4 +54,45 @@ func registerTeacherStudent(teacherEmail string, studentEmails []string) error {
 		}
 	}
 	return nil
+}
+
+func getCommonStudents(teachers []string) ([]string, error) {
+	// Enclose each email in single quotes
+	quotedEmails := make([]string, len(teachers))
+	for i, teacher := range teachers {
+		quotedEmails[i] = "'" + teacher + "'"
+	}
+
+	query := `
+		SELECT s.email
+		FROM students s
+		INNER JOIN teacher_student ts ON s.id = ts.student_id
+		INNER JOIN teachers t ON ts.teacher_id = t.id
+		WHERE t.email IN (` + strings.Join(quotedEmails, ", ") + `)
+		GROUP BY s.email
+		HAVING COUNT(DISTINCT t.email) = ` + strconv.Itoa(len(teachers))
+
+	// Execute the query
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	// Collect the common students into a slice
+	var commonStudents []string
+
+	// Loop each row returned by db
+	for rows.Next() {
+		var studentEmail string
+		if err := rows.Scan(&studentEmail); err != nil {
+			return nil, err
+		}
+		commonStudents = append(commonStudents, studentEmail)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return commonStudents, nil
 }
