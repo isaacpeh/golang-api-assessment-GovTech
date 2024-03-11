@@ -64,7 +64,7 @@ CREATE TABLE teacher_student (
 
 If you are doing a fresh installation of the project, please initialize the project by running the `go mod init` command first.
 
-- ` go mod init example/golang-api-assessment-govtech`
+- `go mod init example/golang-api-assessment-govtech`
 
 And to start the server, navigate to the root of the project and run the following command:
 
