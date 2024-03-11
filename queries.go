@@ -114,9 +114,17 @@ func suspendSpecificStudent(student string) (int64, error) {
 
 func returnRecipients(teacherEmail string, studentEmails []string) ([]string, error) {
 	// Enclose each email in single quotes
-	quotedEmails := make([]string, len(studentEmails))
-	for i, student := range studentEmails {
-		quotedEmails[i] = "'" + student + "'"
+	var emailCondition string
+	if len(studentEmails) > 0 {
+		// Enclose each email in single quotes
+		quotedEmails := make([]string, len(studentEmails))
+		for i, student := range studentEmails {
+			quotedEmails[i] = "'" + student + "'"
+		}
+		emailCondition = " OR s.email IN (" + strings.Join(quotedEmails, ", ") + ")"
+	} else {
+		// If studentEmails is empty, set the condition to an empty string
+		emailCondition = ""
 	}
 
 	query := `
@@ -125,7 +133,7 @@ func returnRecipients(teacherEmail string, studentEmails []string) ([]string, er
 		LEFT JOIN teacher_student ts ON s.id = ts.student_id
 		LEFT JOIN teachers t ON t.id = ts.teacher_id
 		WHERE s.isSuspended = false 
-		AND (t.email = $1 OR s.email IN (` + strings.Join(quotedEmails, ", ") + `))
+		AND (t.email = $1` + emailCondition + `)
 	`
 
 	// Execute the query
